@@ -13,68 +13,49 @@ class MovieData:
             'accept': 'application/json',
             'Authorization': 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzMTI3NGFmYTRlNTUyMjRjYzRlN2Q0NmNlMTNkOTZjOSIsInN1YiI6IjVkNmZhMWZmNzdjMDFmMDAxMDU5NzQ4OSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.lbpgyXlOXwrbY0mUmP-zQpNAMCw_h-oaudAJB6Cn5c8'
         }
-        self.pages = pages
-        self.params = {
+        self.data = []
+        self.get_data_from_pages(pages)
+
+    def get_response(self, number_of_pages):
+        url = f'https://api.themoviedb.org/3/discover/movie'
+        params = {
             'include_adult': False,
             'include_video': False,
             'sort_by': 'popularity.desc',
-            'page': 1
+            'page': number_of_pages
         }
+        return requests.get(url, headers=self.headers, params=params)
 
-    def process_data(self, page):
-        self.params['page'] = page
-        response = requests.get(self.url, headers=self.headers, params=self.params)
-        return response.json()
+    def get_data_from_pages(self, num_of_pages):
+        for i in range(1, num_of_pages + 1):
+            response = self.get_response(i)
+            self.data.extend(response.json()['results'])
 
     def get_multiple_pages(self):
-        all_pages_data = []
-        for page in range(1, self.pages + 1):
-            data = self.process_data(page)
-            all_pages_data.append(data)
-        return all_pages_data
+        return self.data
 
     def get_genre_table(self):
         genre_url = 'https://api.themoviedb.org/3/genre/movie/list'
         response = (requests.get(genre_url, headers=self.headers)).json()
         return response
 
-    def get_all_data(self):
-        data = self.process_data(self.pages)
-        if data['total_pages']:
-            temp = data['total_pages']
-        else:
-            return None
-        for page in range(1, temp + 1):
-            data = self.process_data(page)
-            pprint(data)
-
     def get_most_popular_title(self):
         most_popular_title = None
         max_popularity = 0
-        for page in range(1, self.pages + 1):
-            data = self.process_data(page)
-            if data['results']:
-                for param in data['results']:
-                    if param['popularity'] > max_popularity:
-                        max_popularity = param['popularity']
-                        most_popular_title = param['title']
+        for param in self.data:
+            if param['popularity'] > max_popularity:
+                max_popularity = param['popularity']
+                most_popular_title = param['title']
         return most_popular_title
 
     def get_movie_data_with_indexes(self):
-        data = self.process_data(self.pages)
-        if data['results']:
-            return data['results'][3:19:4]
-        else:
-            return None
+        return self.data[3:19:4]
 
     def get_response_with_params(self, search_params):
         lst = []
-        for page in range(1, self.pages + 1):
-            data = self.process_data(page)
-            if data['results']:
-                for movie in data['results']:
-                    if all(param.lower() in movie['overview'].lower() for param in search_params):
-                        lst.append(movie['title'])
+        for movie in self.data:
+            if all(param.lower() in movie['overview'].lower() for param in search_params):
+                lst.append(movie['title'])
         return lst
 
     def get_genres_id_by_names(self, genres):
@@ -97,21 +78,15 @@ class MovieData:
     def remove_movies_with_unwanted_genres(self, genres):
         genre_ids = self.get_genres_id_by_names(genres)
         new_results = []
-        for page in range(1, self.pages + 1):
-            data = self.process_data(page)
-            if data['results']:
-                for elem in data['results']:
-                    if not any(genre_id in elem['genre_ids'] for genre_id in genre_ids):
-                        new_results.append(elem)
+        for elem in self.data:
+            if not any(genre_id in elem['genre_ids'] for genre_id in genre_ids):
+                new_results.append(elem)
         return new_results
 
     def get_genre_ids(self):
         all_genres_ids = []
-        for page in range(1, self.pages + 1):
-            data = self.process_data(page)
-            if data['results']:
-                for genre in data['results']:
-                    all_genres_ids.extend(genre['genre_ids'])
+        for genre in self.data:
+            all_genres_ids.extend(genre['genre_ids'])
         return all_genres_ids
 
     def get_genre_collection(self):
@@ -141,23 +116,18 @@ class MovieData:
 
     def generate_collections_of_structures(self):
         new_data = []
-        for page in range(1, self.pages + 1):
-            data = self.process_data(page)
-            if data['results']:
-                for param in data['results']:
-                    parse_time = datetime.strptime(param['release_date'], '%Y-%m-%d')
-                    last_day = parse_time + timedelta(weeks=10)
-                    new_data.append({
-                        'Last_day_in_cinema': last_day.strftime('%Y-%m-%d'),
-                        'Score': round(param['vote_average']),
-                        'Popularity': f'{param["popularity"]:.1f}',
-                        'Title': param['title'],
-                    })
-                sorted_new_data = sorted(new_data, key=lambda item: (item['Score'], float(item['Popularity'])),
-                                         reverse=True)
-                return sorted_new_data
-            else:
-                return None
+        for param in self.data:
+            parse_time = datetime.strptime(param['release_date'], '%Y-%m-%d')
+            last_day = parse_time + timedelta(weeks=10, days=4)
+            new_data.append({
+                'Last_day_in_cinema': last_day.strftime('%Y-%m-%d'),
+                'Score': round(param['vote_average']),
+                'Popularity': f'{param["popularity"]:.1f}',
+                'Title': param['title'],
+            })
+        sorted_new_data = sorted(new_data, key=lambda item: (item['Score'], float(item['Popularity'])),
+                                 reverse=True)
+        return sorted_new_data
 
     def write_collection_of_structures_to_csv(self, data):
         with open('data.csv', 'w', newline='') as file:
@@ -166,16 +136,16 @@ class MovieData:
             csv_writer.writeheader()
             for row in data:
                 csv_writer.writerow(row)
+        return 'Success!'
 
-
-movi = MovieData(5)
 
 list_with_genres = ['Action', 'History']
 list_with_params = ['house']
 
-print(f'Task 1: {movi.get_multiple_pages()}')
+print(f'Task 1: ')
+movi = MovieData(5)
 
-# print(f'Task 2: {movi.get_all_data()}')
+print(f'Task 2: {movi.get_multiple_pages()}')
 
 print(f'Task 3: {movi.get_movie_data_with_indexes()}')
 
