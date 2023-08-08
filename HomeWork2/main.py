@@ -1,30 +1,37 @@
 import requests
-import copy
+from copy import deepcopy
 import csv
 from collections import Counter
-from pprint import pprint
 from datetime import datetime, timedelta
 
 
 class MovieData:
+    FIELDNAMES = ['Title', 'Score', 'Popularity', 'Last_day_in_cinema']
+    HEADERS = {
+        'accept': 'application/json',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzMTI3NGFmYTRlNTUyMjRjYzRlN2Q0NmNlMTNkOTZjOSIsInN1YiI6IjVkNmZhMWZmNzdjMDFmMDAxMDU5NzQ4OSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.lbpgyXlOXwrbY0mUmP-zQpNAMCw_h-oaudAJB6Cn5c8'
+    }
+    BASE_PART = 'https://api.themoviedb.org/3/'
+
     def __init__(self, pages):
-        self.url = 'https://api.themoviedb.org/3/discover/movie'
-        self.headers = {
-            'accept': 'application/json',
-            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzMTI3NGFmYTRlNTUyMjRjYzRlN2Q0NmNlMTNkOTZjOSIsInN1YiI6IjVkNmZhMWZmNzdjMDFmMDAxMDU5NzQ4OSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.lbpgyXlOXwrbY0mUmP-zQpNAMCw_h-oaudAJB6Cn5c8'
-        }
+        self.url = f'{self.BASE_PART}discover/movie'
+        self.genre_data = self.get_genre_table()
         self.data = []
         self.get_data_from_pages(pages)
+        self.genre_table = self.genre_table_with_ids()
 
     def get_response(self, number_of_pages):
-        url = f'https://api.themoviedb.org/3/discover/movie'
         params = {
             'include_adult': False,
             'include_video': False,
             'sort_by': 'popularity.desc',
             'page': number_of_pages
         }
-        return requests.get(url, headers=self.headers, params=params)
+        return requests.get(self.url, headers=self.HEADERS, params=params)
+
+    def get_genre_table(self):
+        genre_url = f'{self.BASE_PART}genre/movie/list'
+        return (requests.get(genre_url, headers=self.HEADERS)).json()
 
     def get_data_from_pages(self, num_of_pages):
         for i in range(1, num_of_pages + 1):
@@ -34,54 +41,31 @@ class MovieData:
     def get_multiple_pages(self):
         return self.data
 
-    def get_genre_table(self):
-        genre_url = 'https://api.themoviedb.org/3/genre/movie/list'
-        response = (requests.get(genre_url, headers=self.headers)).json()
-        return response
-
     def get_most_popular_title(self):
-        most_popular_title = None
-        max_popularity = 0
-        for param in self.data:
-            if param['popularity'] > max_popularity:
-                max_popularity = param['popularity']
-                most_popular_title = param['title']
-        return most_popular_title
+        return max((param['popularity'], param['title']) for param in self.data)[1]
 
     def get_movie_data_with_indexes(self):
         return self.data[3:19:4]
 
-    def get_response_with_params(self, search_params):
-        lst = []
-        for movie in self.data:
-            if all(param.lower() in movie['overview'].lower() for param in search_params):
-                lst.append(movie['title'])
-        return lst
-
-    def get_genres_id_by_names(self, genres):
-        ids = []
-        data = self.get_genre_table()
-        for elem in data['genres']:
-            if elem['name'] in genres:
-                ids.append(elem['id'])
-        return ids
+    def search_films_by_keywords(self, keywords):
+        return [movie['title'] for movie in self.data if
+                all(param.lower() in movie['overview'].lower() for param in keywords)]
 
     def get_genres_name_by_id(self, ids):
-        genres = []
-        data = self.get_genre_table()
-        for genre_id in ids:
-            for elem in data['genres']:
-                if elem['id'] == genre_id:
-                    genres.append(elem['name'])
-        return genres
+        return [elem['name'] for elem in self.genre_data['genres'] for genre_id in ids if elem['id'] == genre_id]
+
+    def genre_table_with_ids(self):
+        return {genre['name']: genre['id'] for genre in self.genre_data['genres']}
 
     def remove_movies_with_unwanted_genres(self, genres):
-        genre_ids = self.get_genres_id_by_names(genres)
-        new_results = []
-        for elem in self.data:
-            if not any(genre_id in elem['genre_ids'] for genre_id in genre_ids):
-                new_results.append(elem)
-        return new_results
+        unwanted_genres = [self.genre_table[genre] for genre in genres if genre in self.genre_table]
+        return [elem for elem in self.data if not any(genre_id in elem['genre_ids'] for genre_id in unwanted_genres)]
+
+    def group_movies(self):
+        return [(movie1['title'], movie2['title'])
+                for i, movie1 in enumerate(self.data)
+                for movie2 in self.data[i + 1:]
+                if any(genre in movie2['genre_ids'] for genre in movie1['genre_ids'])]
 
     def get_genre_ids(self):
         all_genres_ids = []
@@ -90,57 +74,39 @@ class MovieData:
         return all_genres_ids
 
     def get_genre_collection(self):
-        genre_name_list = []
-        data = self.get_genre_table()
-        if data['genres']:
-            for name in data['genres']:
-                genre_name_list.append(name['name'])
-            return genre_name_list
-        else:
-            return None
+        return tuple(self.genre_table_with_ids().keys())
 
     def get_most_common_genres(self):
-        genres_id = self.get_genre_ids()
-        genres = self.get_genres_name_by_id(genres_id)
-        return Counter(genres)
+        return dict(Counter(self.get_genres_name_by_id(self.get_genre_ids())))
 
     def genre_table_replace_first_id_with_22(self):
-        genre_table_modified = self.get_genre_table()
-        genre_table_initial = copy.deepcopy(genre_table_modified)
-        if genre_table_modified['genres']:
-            genre_table_modified['genres'][0]['id'] = 22
-        else:
-            return None
+        genre_table_modified = self.data
+        genre_table_initial = deepcopy(genre_table_modified)
+        genre_table_modified[0]['genre_ids'][0] = 22
         print(f'Initial data: {genre_table_initial}')
         print(f'Modified data: {genre_table_modified}')
 
+    @staticmethod
+    def x(movie):
+        last_day = datetime.strptime(movie['release_date'], '%Y-%m-%d') + timedelta(weeks=10, days=4)
+        return {
+            'Title': movie['title'],
+            'Score': round(movie['vote_average']),
+            'Popularity': f'{movie["popularity"]:.1f}',
+            'Last_day_in_cinema': last_day.strftime('%Y-%m-%d'),
+        }
+
     def generate_collections_of_structures(self):
-        new_data = []
-        for param in self.data:
-            parse_time = datetime.strptime(param['release_date'], '%Y-%m-%d')
-            last_day = parse_time + timedelta(weeks=10, days=4)
-            new_data.append({
-                'Last_day_in_cinema': last_day.strftime('%Y-%m-%d'),
-                'Score': round(param['vote_average']),
-                'Popularity': f'{param["popularity"]:.1f}',
-                'Title': param['title'],
-            })
-        sorted_new_data = sorted(new_data, key=lambda item: (item['Score'], float(item['Popularity'])),
-                                 reverse=True)
-        return sorted_new_data
+        return sorted(list(map(MovieData.x, self.data)),
+                      key=lambda item: (item['Score'], float(item['Popularity'])),
+                      reverse=True)
 
     def write_collection_of_structures_to_csv(self, data):
         with open('data.csv', 'w', newline='') as file:
-            fieldnames = ['Title', 'Score', 'Popularity', 'Last_day_in_cinema']
-            csv_writer = csv.DictWriter(file, fieldnames=fieldnames)
+            csv_writer = csv.DictWriter(file, fieldnames=self.FIELDNAMES)
             csv_writer.writeheader()
-            for row in data:
-                csv_writer.writerow(row)
-        return 'Success!'
+            csv_writer.writerows(data)
 
-
-list_with_genres = ['Action', 'History']
-list_with_params = ['house']
 
 print(f'Task 1: ')
 movi = MovieData(5)
@@ -151,15 +117,15 @@ print(f'Task 3: {movi.get_movie_data_with_indexes()}')
 
 print(f'Task 4: {movi.get_most_popular_title()}')
 
-print(f'Task 5: {movi.get_response_with_params(list_with_params)}')
+print(f'Task 5: {movi.search_films_by_keywords("house")}')
 
 print(f'Task 6: {movi.get_genre_collection()}')
 
-print(f'Task 7: {movi.remove_movies_with_unwanted_genres(list_with_genres)}')
+print(f'Task 7: {movi.remove_movies_with_unwanted_genres(["Action", "History", "Adventure"])}')
 
 print(f'Task 8: {movi.get_most_common_genres()}')
 
-print(f'Task 9: Not completed')
+print(f'Task 9: {movi.group_movies()}')
 
 print(f'Task 10: ')
 movi.genre_table_replace_first_id_with_22()
