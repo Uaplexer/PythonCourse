@@ -1,33 +1,24 @@
 import random
 
-cols = int(input('Enter number of columns: '))
-rows = int(input('Enter number of rows: '))
 
-matrix = [[random.randint(-20, 9) for _ in range(cols)] for _ in range(rows)]
+def matrix_output(cols, rows):
+    return [[random.randint(-8, 20) for _ in range(cols)] for _ in range(rows)]
 
 
 def first_col_with_zero(matrix):
-    num_cols = max(len(row) for row in matrix)
-    for col in range(num_cols):
-        for row in range(len(matrix)):
-            if col < len(matrix[row]) and matrix[row][col] == 0:
-                return col + 1
+    for row in matrix:
+        for col_i, col in enumerate(row, start=1):
+            if not col:
+                return col_i
     return None
 
-def find_sum_of_negative_even_rows(matrix):
-    sum_list = []
-    for row in matrix:
-        negative_even_sum = 0
-        for elem in row:
-            if elem < 0 and elem % 2 == 0:
-                negative_even_sum += elem
-        sum_list.append(negative_even_sum)
-    return sum_list
+
+def find_sums_of_negative_even_rows(matrix):
+    return [sum(elem for elem in row if elem < 0 and elem % 2 == 0) for row in matrix]
 
 
 def sort_matrix_by_neg_even_sum(matrix, sum_list):
-    sorted_matrix = sorted(matrix, key=lambda row: sum_list[matrix.index(row)], reverse=True)
-    return sorted_matrix
+    return sorted(matrix, key=lambda row: sum_list[matrix.index(row)], reverse=True)
 
 
 def print_matrix(matrix):
@@ -36,9 +27,13 @@ def print_matrix(matrix):
     print('\n')
 
 
+cols = int(input('Enter number of columns: '))
+rows = int(input('Enter number of rows: '))
+
+matrix = matrix_output(cols, rows)
 print('Matrix: ')
 print_matrix(matrix)
-sums = find_sum_of_negative_even_rows(matrix)
+sums = find_sums_of_negative_even_rows(matrix)
 print('Sorted matrix: ')
 print_matrix(sort_matrix_by_neg_even_sum(matrix, sums))
 

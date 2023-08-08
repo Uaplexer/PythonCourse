@@ -1,10 +1,5 @@
 import random
 
-cols = int(input('Enter number of columns: '))
-rows = int(input('Enter number of rows: '))
-
-matrix = [[random.randint(-8, 20) for _ in range(cols)] for _ in range(rows)]
-
 
 def multiplication_of_positive_rows(matrix):
     row_positive = []
@@ -19,15 +14,13 @@ def multiplication_of_positive_rows(matrix):
 
 def sum_of_parallel_diagonal(matrix):
     size = len(matrix)
-    diagonals = []
-
-    for i in range(1, size - 1):
-        diagonals.append([matrix[j][j + i] for j in range(size - i)])
-
-    for i in range(1, size - 1):
-        diagonals.append([matrix[j + i][j] for j in range(size - i)])
-
+    diagonals = [[matrix[j][j + i] for j in range(size - i)] for i in range(1, size)]
+    diagonals.extend([matrix[j + i][j] for j in range(size - i)] for i in range(1, size))
     return max(sum(diagonal) for diagonal in diagonals)
+
+
+def matrix_output(cols, rows):
+    return [[random.randint(-8, 20) for _ in range(cols)] for _ in range(rows)]
 
 
 def print_matrix(matrix):
@@ -35,6 +28,10 @@ def print_matrix(matrix):
         print(row)
 
 
+cols = int(input('Enter number of columns: '))
+rows = int(input('Enter number of rows: '))
+
+matrix = matrix_output(rows, cols)
 print_matrix(matrix)
 
 print(f'Multiplication of positive rows: {multiplication_of_positive_rows(matrix)}')
