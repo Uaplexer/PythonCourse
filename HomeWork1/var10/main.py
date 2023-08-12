@@ -3,23 +3,16 @@ import random
 
 def is_local_minimum(matrix, row, col):
     current_value = matrix[row][col]
-    neighbors = []
     num_rows = len(matrix)
     num_cols = len(matrix[0])
-    for i in range(max(0, row - 1), min(row + 2, num_rows)):
-        for j in range(max(0, col - 1), min(col + 2, num_cols)):
-            if i != row or j != col:
-                neighbors.append(matrix[i][j])
+    neighbors = [matrix[i][j] for i in range(max(0, row - 1), min(row + 2, num_rows))
+                 for j in range(max(0, col - 1), min(col + 2, num_cols)) if (i, j) != (row, col)]
     return all(current_value < neighbor for neighbor in neighbors)
 
 
+
 def find_local_minimums(matrix):
-    local_minimums = 0
-    for row in range(len(matrix)):
-        for col in range(len(matrix[0])):
-            if is_local_minimum(matrix, row, col):
-                local_minimums += 1
-    return local_minimums
+    return sum(1 for row in range(len(matrix)) for col in range(len(matrix[0])) if is_local_minimum(matrix, row, col))
 
 
 def matrix_output(cols, rows):
