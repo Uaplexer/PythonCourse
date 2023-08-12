@@ -3,6 +3,7 @@ from copy import deepcopy
 import csv
 from collections import Counter
 from datetime import datetime, timedelta
+from itertools import chain
 
 
 class MovieData:
@@ -18,7 +19,7 @@ class MovieData:
         self.genre_data = self.get_genre_table()
         self.data = []
         self.get_data_from_pages(pages)
-        self.genre_table = self.genre_table_with_ids()
+        self.genre_table = self.get_genre_table_with_ids()
 
     def get_response(self, number_of_pages):
         params = {
@@ -42,7 +43,7 @@ class MovieData:
         return self.data
 
     def get_most_popular_title(self):
-        return max((param['popularity'], param['title']) for param in self.data)[1]
+        return max(self.data, key=lambda movie: movie['popularity'])['title']
 
     def get_movie_data_with_indexes(self):
         return self.data[3:19:4]
@@ -54,12 +55,15 @@ class MovieData:
     def get_genres_name_by_id(self, ids):
         return [elem['name'] for elem in self.genre_data['genres'] for genre_id in ids if elem['id'] == genre_id]
 
-    def genre_table_with_ids(self):
+    def get_genre_table_with_ids(self):
         return {genre['name']: genre['id'] for genre in self.genre_data['genres']}
 
+    def get_genre_table_with_names(self):
+        return {val: key for key, val in self.get_genre_table_with_ids().items()}
+
     def remove_movies_with_unwanted_genres(self, genres):
-        unwanted_genres = [self.genre_table[genre] for genre in genres if genre in self.genre_table]
-        return [elem for elem in self.data if not any(genre_id in elem['genre_ids'] for genre_id in unwanted_genres)]
+        return [elem for elem in self.data for genre in elem['genre_ids'] if
+                self.get_genre_table_with_names()[genre] not in genres]
 
     def group_movies(self):
         return [(movie1['title'], movie2['title'])
@@ -68,26 +72,22 @@ class MovieData:
                 if any(genre in movie2['genre_ids'] for genre in movie1['genre_ids'])]
 
     def get_genre_ids(self):
-        all_genres_ids = []
-        for genre in self.data:
-            all_genres_ids.extend(genre['genre_ids'])
-        return all_genres_ids
+        return list(chain.from_iterable([genre['genre_ids'] for genre in self.data]))
 
     def get_genre_collection(self):
-        return tuple(self.genre_table_with_ids().keys())
+        return tuple(self.genre_table.keys())
 
     def get_most_common_genres(self):
         return dict(Counter(self.get_genres_name_by_id(self.get_genre_ids())))
 
-    def genre_table_replace_first_id_with_22(self):
-        genre_table_modified = self.data
-        genre_table_initial = deepcopy(genre_table_modified)
-        genre_table_modified[0]['genre_ids'][0] = 22
-        print(f'Initial data: {genre_table_initial}')
-        print(f'Modified data: {genre_table_modified}')
+    def get_genre_table_replaced_first_id_with_22(self):
+        genre_table_modified = deepcopy(self.data)
+        for movie in genre_table_modified:
+            movie['genre_ids'][0] = 22
+        return genre_table_modified, self.data
 
     @staticmethod
-    def x(movie):
+    def get_collection_params(movie):
         last_day = datetime.strptime(movie['release_date'], '%Y-%m-%d') + timedelta(weeks=10, days=4)
         return {
             'Title': movie['title'],
@@ -97,7 +97,7 @@ class MovieData:
         }
 
     def generate_collections_of_structures(self):
-        return sorted(list(map(MovieData.x, self.data)),
+        return sorted(list(map(MovieData.get_collection_params, self.data)),
                       key=lambda item: (item['Score'], float(item['Popularity'])),
                       reverse=True)
 
@@ -127,8 +127,7 @@ print(f'Task 8: {movi.get_most_common_genres()}')
 
 print(f'Task 9: {movi.group_movies()}')
 
-print(f'Task 10: ')
-movi.genre_table_replace_first_id_with_22()
+print(f'Task 10: {movi.get_genre_table_replaced_first_id_with_22()}')
 
 print(f'Task 11: {movi.generate_collections_of_structures()}')
 
