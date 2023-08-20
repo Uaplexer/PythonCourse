@@ -8,6 +8,8 @@ from shutil import move, rmtree, make_archive
 from collections import Counter
 from statistics import mean
 
+URL = 'https://randomuser.me/api/?results=5000&format=csv'
+
 
 def parse_args():
     parser = argp.ArgumentParser()
@@ -35,40 +37,32 @@ def write_to_csv(data, filename):
         writer.writerows(data)
 
 
-def read_csv_file():
-    with open(EXACT_CSV_FILENAME, 'r', newline='') as csvfile:
+def read_csv_file(filename):
+    with open(filename, 'r', newline='') as csvfile:
         return list(csv.DictReader(csvfile))
 
 
-def download_csv_file():
-    url = 'https://randomuser.me/api/?results=5000&format=csv'
-    with open(EXACT_CSV_FILENAME, 'w', newline='') as file:
-        file.write((requests.get(url)).text)
+def download_csv_file(filename):
+    with open(filename, 'w', newline='') as file:
+        file.write((requests.get(URL)).text)
     logging.info('Successfully downloaded csv')
 
 
 def filter_csv(csv_data, gender=None, num_of_rows=None):
-    filtered_data = []
     if gender:
-        filtered_data = list(filter(lambda x: x['gender'] == gender, csv_data))
+        csv_data = list(filter(lambda x: x['gender'] == gender, csv_data))
         logger.info('Data was filtered by gender')
-        return filtered_data
     elif num_of_rows and num_of_rows <= len(csv_data):
-        filtered_data = csv_data[:num_of_rows]
+        csv_data = csv_data[:num_of_rows]
         logger.info('Data was filtered by number of rows')
-        return filtered_data
     else:
-        filtered_data = csv_data
         logger.warning("Data wasn't filtered by any of params")
-        return filtered_data
+    return csv_data
 
 
 def current_time_implementation(location_timezone_offset):
-    if location_timezone_offset == '0:00':
-        return datetime.utcnow()
-    else:
-        hours, minutes = map(int, location_timezone_offset.split(':'))
-        return (datetime.utcnow() + timedelta(hours=hours, minutes=minutes)).strftime('%Y-%m-%d %H:%M:%S')
+    hours, minutes = map(int, location_timezone_offset.split(':'))
+    return (datetime.utcnow() + timedelta(hours=hours, minutes=minutes)).strftime('%Y-%m-%d %H:%M:%S')
 
 
 def name_title_implementation(name_title):
@@ -96,110 +90,85 @@ def add_and_change_fields_in_file(csv_data):
     return csv_data
 
 
-def create_and_move_file_to_destination_folder(path_to_dir):
+def create_and_move_file_to_destination_folder(path_to_dir, filename):
+    curr_path_folder = os.getcwd()
     if not os.path.exists(path_to_dir):
         logger.warning('Wrong path was entered in args!')
-
-        curr_path_folder = os.getcwd()
-        program_files_folder = 'C:\\Program Files\\'
-        os.chdir(program_files_folder)
-        logger.info(f'Successfully changed directory to {program_files_folder}')
-
         os.makedirs("Users_data_folder", exist_ok=True)
         logger.info('Successfully created folder "Users_data_folder"')
 
-        os.chdir(f'{program_files_folder}Users_data_folder')
-        logger.info(f'Successfully changed folder to "{program_files_folder}Users_data_folder"')
-
-        move(os.path.join(curr_path_folder, EXACT_CSV_FILENAME), f'{program_files_folder}Users_data_folder')
-        logger.info(f'Successfully moved file to default directory "{program_files_folder}Users_data_folder"')
+        move(os.path.join(curr_path_folder, filename), f'{curr_path_folder}\\Users_data_folder')
+        logger.info(f'Successfully moved file to default directory "{curr_path_folder}\\Users_data_folder"')
     else:
-        move(os.path.join(os.getcwd(), EXACT_CSV_FILENAME), path_to_dir)
-        logger.info('Successfully moved initial file to selected directory')
-
-        os.chdir(path_to_dir)
-        os.makedirs('Users_data_folder', exist_ok=True)
+        os.makedirs(os.path.join(path_to_dir, 'Users_data_folder'), exist_ok=True)
         logger.info('Successfully created folder "Users_data_folder"')
-        os.chdir(f'{path_to_dir}\\Users_data_folder')
+
+        move(os.path.join(curr_path_folder, filename), path_to_dir)
+        logger.info('Successfully moved initial file to selected directory')
 
 
 def rearrange_data(csv_data):
     new_data = {}
     for elem in csv_data:
         decade = f'{elem["dob.date"][-2]}0-th'
+        country = elem['location.country']
         new_data.setdefault(decade, {})
-        new_data[decade].setdefault(elem['location.country'], [])
-        new_data[decade][elem['location.country']].append(elem)
+        new_data[decade].setdefault(country, [])
+        new_data[decade][country].append(elem)
     logger.info('Successfully rearranged data!')
     return new_data
 
 
 def get_decades(csv_data):
+    # ['00-th', '90-th', '80-th', '70-th', '60-th', '50-th', '40-th']
     return csv_data.keys()
 
 
-def get_countries(csv_data):
-    return set([elem['location.country'] for elem in csv_data])
-
-
-def create_sub_folders(decades, countries):
-    curr_dir = os.getcwd()
-
-    for decade in decades:
-        decade_dir = os.path.join(curr_dir, decade)
-        os.makedirs(decade_dir, exist_ok=True)
-
-        os.chdir(decade_dir)
-        for country in countries:
-            country_dir = os.path.join(decade_dir, country)
-            os.makedirs(country_dir, exist_ok=True)
-
-    os.chdir(curr_dir)
-    logger.info('Successfully created sub folders with Countries and Decades')
+def get_countries(rearranged_data, decade):
+    decade_data = rearranged_data.get(decade, {})
+    return list(decade_data.keys())
 
 
 def find_max_age(rearranged_csv, decade, country):
-    return min([int(elem['dob.date'][6:]) for elem in rearranged_csv[decade][country]])
+    return min([int(elem['dob.date'][-4:]) for elem in rearranged_csv[decade][country]])
 
 
 def find_avg_registered(rearranged_csv, decade, country):
-    return round(mean([int(elem['registered.date'][6:10]) for elem in rearranged_csv[decade][country]]))
+    return mean([int(elem['registered.date'][6:10]) for elem in rearranged_csv[decade][country]])
 
 
 def find_most_common_name(rearranged_csv, decade, country):
     return Counter([elem['id.name'] for elem in rearranged_csv[decade][country]]).most_common(1)[0][0]
 
 
-def write_users_data_to_different_files(rearranged_data, decades, countries):
-    curr_dir = os.getcwd()
+def get_file_name(rearranged_csv, decade, country):
+    max_age = find_max_age(rearranged_csv, decade, country)
+    avg_registered = find_avg_registered(rearranged_csv, decade, country)
+    most_common_name = find_most_common_name(rearranged_csv, decade, country)
+    return max_age, avg_registered, most_common_name
+
+
+def create_file(file_path, file_name, data):
+    with open(file_path, 'w', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=data[0].keys())
+        writer.writeheader()
+        writer.writerows(data)
+    logger.info(f'\t\tSuccessfully created file {file_name}')
+
+
+def write_users_data_to_different_files(rearranged_data, decades):
+    curr_dir = f'{os.getcwd()}//Users_data_folder'
 
     for decade in decades:
-        decade_dir = os.path.join(curr_dir, decade)
         logger.info(f'Successfully joined folder {decade}')
-        for country in countries:
-            country_dir = os.path.join(decade_dir, country)
-            logger.info(f'\t\tSuccessfully joined folder {country}')
-
-            try:
-                os.makedirs(country_dir, exist_ok=True)
-
-                os.chdir(country_dir)
-
-                max_age = find_max_age(rearranged_data, decade, country)
-                avg_registered = find_avg_registered(rearranged_data, decade, country)
-                most_common_name = find_most_common_name(rearranged_data, decade, country)
-
-                file_name = f'{max_age}_{avg_registered}_{most_common_name}.csv'
-
-                with open(file_name, 'w', newline='') as file:
-                    writer = csv.DictWriter(file, fieldnames=rearranged_data[decade][country][0].keys())
-                    writer.writeheader()
-                    writer.writerows(rearranged_data[decade][country])
-                logger.info(f'\t\t\tSuccessfully created file {file_name}')
-
-            except KeyError:
-                logger.warning(f'No country {country} in {decade}')
-
+        for country in get_countries(rearranged_data, decade):
+            country_dir = os.path.join(curr_dir, decade, country)
+            os.makedirs(country_dir, exist_ok=True)
+            logger.info(f'\tSuccessfully joined folder {country}')
+            max_age, avg_registered, most_common_name = get_file_name(rearranged_data, decade, country)
+            file_name = f'{max_age}_{avg_registered:.0f}_{most_common_name}.csv'
+            file_path = os.path.join(country_dir, file_name)
+            create_file(file_path, file_name, rearranged_data[decade][country])
     logger.info('Successfully wrote users data to local files')
     os.chdir(curr_dir)
 
@@ -211,38 +180,34 @@ def delete_decades_under_60(decades):
             logger.info(f'Successfully deleted {decade} decade')
 
 
-# This func is creating infinite zip
 def archive_dest_folder(path_to_folder):
-    if os.path.exists(path_to_folder):
-        make_archive(f'{path_to_folder}\\Users_data_folder', 'zip')
-    else:
-        make_archive('C:\\Program Files\\Users_data_folder', 'zip')
+    base_name = f'{path_to_folder}\\Users_data_folder' if os.path.exists(
+        path_to_folder) else f'{os.getcwd()}'
+    make_archive(base_name, 'zip')
 
 
 # Task 3
 args = parse_args()
-EXACT_CSV_FILENAME = args.filename + '.csv'
-
+csv_filename = f'{args.filename}.csv'
+# if os.path.exists(args.path):
+#     rmtree(args.path)
 # Task 1
 logger = set_logger(args.log_level)
 # Task 2
-download_csv_file()
+download_csv_file(csv_filename)
 # Task 4
-initial_csv_data = read_csv_file()
-countries = get_countries(initial_csv_data)
+initial_csv_data = read_csv_file(csv_filename)
 filtered = filter_csv(initial_csv_data, gender=args.gender, num_of_rows=args.num_of_rows)
 # Task 5
 modified_data = add_and_change_fields_in_file(filtered)
-write_to_csv(modified_data, EXACT_CSV_FILENAME)
+write_to_csv(modified_data, csv_filename)
 # Task 6-7
-create_and_move_file_to_destination_folder(args.path)
+create_and_move_file_to_destination_folder(args.path, csv_filename)
 # Task 8
 rearranged = rearrange_data(modified_data)
 decades = get_decades(rearranged)
-# Task 9-10
-create_sub_folders(decades, countries)
-# Task 11,13
-write_users_data_to_different_files(rearranged, decades, countries)
+# Task 9-11,13
+write_users_data_to_different_files(rearranged, decades)
 # Task 12
 delete_decades_under_60(decades)
 # Task 14
