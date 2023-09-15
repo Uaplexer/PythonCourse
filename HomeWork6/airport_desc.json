@@ -1,0 +1,37 @@
+{
+  "heliport": {
+    "Type": "heliport",
+    "Feature": "Can hold only helicopters",
+    "Length": null,
+    "Width": null,
+    "Hangars": "3-12"
+  },
+  "small_airport": {
+    "Type": "small_airport",
+    "Feature": "Can hold only passenger, non-combat planes",
+    "Length": "1000-1500 m",
+    "Width": "5-7 m",
+    "Hangars": "2-4"
+  },
+  "seaplane_base": {
+    "Type": "seaplane_base",
+    "Feature": "Can hold only Marine adopted planes",
+    "Length": null,
+    "Width": null,
+    "Hangars": "3"
+  },
+  "medium_airport": {
+    "Type": "medium_airport",
+    "Feature": "Can hold only passengers planes",
+    "Length": "2000-3000 m",
+    "Width": "10-20 m",
+    "Hangars": "8-15"
+  },
+  "large_airport": {
+    "Type": "large_airport",
+    "Feature": "Can hold anything excluding helicopters",
+    "Length": "2400-4000 m",
+    "Width": "15-40 m",
+    "Hangars": "17-22"
+  }
+}
