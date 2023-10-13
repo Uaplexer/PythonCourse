@@ -85,7 +85,6 @@ def add_and_change_fields_in_file(csv_data):
         elem['name.title'] = name_title_implementation(elem['name.title'])
         elem['dob.date'] = convert_format(elem['dob.date'], '%m/%d/%Y')
         elem['registered.date'] = convert_format(elem['registered.date'], '%m-%d-%Y, %H:%M:%S')
-    logger.info('Successfully added and modified attributes')
     return csv_data
 
 
@@ -161,27 +160,27 @@ def archive_dest_folder(path_to_folder):
     make_archive(path_to_folder, 'zip')
 
 
-# Task 3
-args = parse_args()
-work_path = get_working_path(args.path)
-csv_filename = f'{args.filename}.csv'
-# Task 1
-logger = set_logger(args.log_level)
-# Task 2
-download_csv_file(csv_filename)
-# Task 4
-initial_csv_data = read_csv_file(csv_filename)
-filtered = filter_csv(initial_csv_data, gender=args.gender, num_of_rows=args.num_of_rows)
-# Task 5
-modified_data = add_and_change_fields_in_file(filtered)
-write_to_csv(os.path.join(os.getcwd(), csv_filename), modified_data)
-# Task 6-7
-move_file_to_destination_folder(args.path, csv_filename)
-# Task 8
-rearranged = rearrange_data(modified_data)
-# Task 9-11,13
-write_users_data_to_different_files(rearranged, work_path)
-# Task 12
-delete_decades_under_60(rearranged, work_path)
-# Task 14
-archive_dest_folder(work_path)
+if __name__ == '__main__':
+    args = parse_args()
+    work_path = get_working_path(args.path)
+    csv_filename = f'{args.filename}.csv'
+    # Task 1
+    logger = set_logger(args.log_level)
+    # Task 2
+    download_csv_file(csv_filename)
+    # Task 4
+    initial_csv_data = read_csv_file(csv_filename)
+    filtered = filter_csv(initial_csv_data, gender=args.gender, num_of_rows=args.num_of_rows)
+    # Task 5
+    modified_data = add_and_change_fields_in_file(filtered)
+    write_to_csv(os.path.join(os.getcwd(), csv_filename), modified_data)
+    # Task 6-7
+    move_file_to_destination_folder(args.path, csv_filename)
+    # Task 8
+    rearranged = rearrange_data(modified_data)
+    # Task 9-11,13
+    write_users_data_to_different_files(rearranged, work_path)
+    # Task 12
+    delete_decades_under_60(rearranged, work_path)
+    # Task 14
+    archive_dest_folder(work_path)
