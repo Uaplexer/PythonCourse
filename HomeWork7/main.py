@@ -77,6 +77,7 @@ class WeatherMatPlot:
         temperatures_min: list = daily_data.get('temperature_2m_min', [])
 
         daily_temperatures: list = [temperatures_2m[i:i + 24] for i in range(0, len(temperatures_2m), 24)]
+        daily_temperatures = [[temp if temp is not None else 0 for temp in day_temperatures] for day_temperatures in daily_temperatures]
         average_daily_temperatures: list = [np.mean(daily) for daily in daily_temperatures]
         day_dates: list = [self.convert_format(date, '%Y-%m-%d', '%d %b') for date in daily_data.get('time', [])]
 
@@ -175,6 +176,8 @@ class WeatherMatPlot:
         - city_name (str): Name of the city to plot wind speed data for.
         """
         wind_data: list = self.cities_data[city_name].get('hourly', {}).get('windspeed_10m')
+
+        wind_data = [value for value in wind_data if value is not None]
 
         fig, ax = plt.subplots()
 
