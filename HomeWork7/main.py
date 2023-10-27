@@ -65,11 +65,12 @@ class WeatherMatPlot:
         - city_name (str): Name of the city to plot temperature data for.
         """
         temp_data: dict = self.cities_data.get(city_name)
+        forecast_days: int = self.params['forecast_days']
         if temp_data is None:
             print(f'Data for {city_name} is not available.')
             return
 
-        timestamps = np.arange(0.0416, 16, 0.0416)
+        timestamps = np.arange(0.0416, forecast_days, 0.0416)
         daily_data: dict = temp_data.get('daily', {})
         hourly_data: dict = temp_data.get('hourly', {})
         temperatures_2m: list = hourly_data.get('temperature_2m', [])
@@ -77,11 +78,12 @@ class WeatherMatPlot:
         temperatures_min: list = daily_data.get('temperature_2m_min', [])
 
         daily_temperatures: list = [temperatures_2m[i:i + 24] for i in range(0, len(temperatures_2m), 24)]
-        daily_temperatures = [[temp if temp is not None else 0 for temp in day_temperatures] for day_temperatures in daily_temperatures]
+        daily_temperatures = [[temp if temp is not None else 0 for temp in day_temperatures] for day_temperatures in
+                              daily_temperatures]
         average_daily_temperatures: list = [np.mean(daily) for daily in daily_temperatures]
         day_dates: list = [self.convert_format(date, '%Y-%m-%d', '%d %b') for date in daily_data.get('time', [])]
 
-        daily_timestamps = np.arange(0, 16)
+        daily_timestamps = np.arange(0, forecast_days)
 
         fig, ax = plt.subplots()
         ax.plot(timestamps, temperatures_2m, label='Hourly', linestyle='--')
@@ -93,7 +95,12 @@ class WeatherMatPlot:
                 color='green')
         ax.plot(timestamps, np.interp(timestamps, daily_timestamps, average_daily_temperatures), label='Average',
                 marker='.', markevery=24)
-        ax.set_xticks(daily_timestamps, day_dates)
+
+        if forecast_days > 8:
+            ax.set_xticks(daily_timestamps[::2], day_dates[::2])
+        else:
+            ax.set_xticks(daily_timestamps, day_dates)
+
         ax.set_yticks(np.arange(0, 31, 5))
         ax.set_title(f'The weather in {city_name} for the next {self.params["forecast_days"]} days')
         ax.set_xlabel('Days')
