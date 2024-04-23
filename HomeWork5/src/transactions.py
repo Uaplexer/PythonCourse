@@ -40,7 +40,7 @@ def perform_transaction(sender_account_number: str, receiver_account_number: str
         logger.error(f'Receiver account number {receiver_account_number} not found')
         return None
 
-    exchange_rate = get_exchange_rate(sender_account['currency'], receiver_account['currency'])
+    exchange_rate = get_exchange_rate(sender_account.get('currency'), receiver_account.get('currency'))
 
     new_sender_amount = sender_account.get('amount') - amount
     new_receiver_amount = receiver_account.get('amount') + (amount * exchange_rate)

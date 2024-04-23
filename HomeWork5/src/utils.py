@@ -5,23 +5,9 @@ import sqlite3
 from logger import setup_logger
 from datetime import timedelta, datetime
 from db_connection import establish_db_connection
-from initial_db_setup_001 import USERS_TN, ACCOUNTS_TN, BANKS_TN, TRANSACTIONS_TN
-
-AVAILABLE_DISCOUNTS = [25, 30, 50]
+from globals import USERS_TN, ACCOUNTS_TN, BANKS_TN, TRANSACTIONS_TN, AVAILABLE_DISCOUNTS
 
 logger = setup_logger()
-
-
-def prepare_data(data: list[dict] | dict) -> list[tuple]:
-    """
-    Prepare data for database insertion.
-
-    Converts input data into a list if necessary.
-
-    :param data: Data to be prepared. It can be a list of dictionaries or a single dictionary.
-    :return: A list of dicts.
-    """
-    return data if isinstance(data, list) else [data]
 
 
 def serialize_data(cursor: sqlite3.Cursor, record_data: list) -> dict:
@@ -47,7 +33,7 @@ def get_query_params(data: dict):
     :param data: Dictionary containing key-value pairs for the update operation.
     :return: String containing the formatted query parameters.
     """
-    return ', '.join([f"{key} = {val!r}" if isinstance(val, str) else f'{key} = {val}' for key, val in data.items()])
+    return ', '.join([f'{key} = {val!r}' if isinstance(val, str) else f'{key} = {val}' for key, val in data.items()])
 
 
 def get_first_element_if_not_empty(collection):
@@ -117,7 +103,7 @@ def get_record_by_condition(cursor: sqlite3.Cursor, table_name: str, query_key: 
 
 
 @establish_db_connection
-def get_table_length(cursor, table_name: str):
+def get_table_length(cursor: sqlite3.Cursor, table_name: str):
     """
     Get the number of rows in a database table.
 
@@ -134,7 +120,7 @@ def get_table_length(cursor, table_name: str):
 
 
 @establish_db_connection
-def get_users_ids(cursor):
+def get_users_ids(cursor: sqlite3.Cursor):
     """
     Get the IDs of all users in the database.
 
@@ -152,7 +138,7 @@ def get_users_ids(cursor):
 
 
 @establish_db_connection
-def get_users_full_names_with_debts(cursor):
+def get_users_full_names_with_debts(cursor: sqlite3.Cursor):
     """
     Get the full names of users with negative account balances.
 
@@ -172,7 +158,7 @@ def get_users_full_names_with_debts(cursor):
 
 
 @establish_db_connection
-def get_biggest_capital_bank(cursor):
+def get_biggest_capital_bank(cursor: sqlite3.Cursor):
     """
     Get the name of the bank with the largest total capital.
 
@@ -191,7 +177,7 @@ def get_biggest_capital_bank(cursor):
 
 
 @establish_db_connection
-def get_bank_with_oldest_client(cursor):
+def get_bank_with_oldest_client(cursor: sqlite3.Cursor):
     """
     Get the name of the bank with the oldest client.
 
@@ -211,7 +197,7 @@ def get_bank_with_oldest_client(cursor):
 
 
 @establish_db_connection
-def get_bank_with_most_unique_outbound_operations(cursor):
+def get_bank_with_most_unique_outbound_operations(cursor: sqlite3.Cursor):
     """
     Get the name of the bank with the most unique outbound operations.
 
@@ -230,7 +216,7 @@ def get_bank_with_most_unique_outbound_operations(cursor):
 
 
 @establish_db_connection
-def get_user_transactions(cursor, user_id: int, days: int = None):
+def get_user_transactions(cursor: sqlite3.Cursor, user_id: int, days: int = None):
     """
     Get all transactions for a specific user within a specified number of past days.
 
@@ -252,7 +238,7 @@ def get_user_transactions(cursor, user_id: int, days: int = None):
 
 
 @establish_db_connection
-def delete_empty_users(cursor):
+def delete_empty_users(cursor: sqlite3.Cursor):
     """
     Delete users with empty fields.
 
@@ -281,46 +267,34 @@ def generate_discounts(user_amount: int):
     return dict(zip(random_user_ids, [random.choice(AVAILABLE_DISCOUNTS) for _ in range(user_amount)]))
 
 
-def clean_full_name(full_name: str):
+def rearrange_full_name(full_name: str):
     """
-    Clean a full name by removing non-alphabetic characters.
+    Clean a full name by removing non-alphabetic characters and split a cleaned full name into first name and last name.
 
     :param full_name: The full name to be cleaned.
-    :return: The cleaned full name.
+    :return: The cleaned and split full name.
     """
     if not full_name:
-        logger.warning('No full name provided')
-        return ''
+        logger.error('No full name provided')
+        raise ValueError('No full name provided')
 
     cleaned_name = re.sub(r'[^a-zA-Z\s]', '', full_name)
     logger.info(f'Cleaned full name: {full_name} -> {cleaned_name}')
-    return cleaned_name
+
+    splitted_full_name = tuple(re.split(r'\s+', cleaned_name.strip()))
+    logger.info(f'Splitted full name: {cleaned_name} -> {splitted_full_name}')
+    return splitted_full_name
 
 
-def split_full_name(cleaned_name: str):
+def modify_users_data(users_data: list[dict]):
     """
-    Split a cleaned full name into first name and last name.
 
-    :param cleaned_name: The cleaned full name to be split.
-    :return: A tuple containing the first name and last name.
-    """
-    if not cleaned_name:
-        logger.warning('No cleaned name provided')
-        return ['', '']
-
-    return tuple(re.split(r'\s+', cleaned_name.strip()))
-
-
-def modify_users_data(users_data: list):
-    """
-    Modify user data by cleaning and ordering fields.
-
-    Modifies user data by cleaning the full name.
+    Modifies user data by cleaning and splitting the full name.
 
     :param users_data: List of user dictionaries to be modified.
     """
-    for user in users_data:
-        full_name = clean_full_name(user.get('full_name'))
-        user['name'], user['surname'] = split_full_name(full_name)
 
-    logger.info(f'Modified user data records')
+    return [{**user, 'name': full_name_parts[0], 'surname': full_name_parts[1]}
+            for user in users_data
+            if (full_name_parts := rearrange_full_name(user.pop('user_full_name')))]
+

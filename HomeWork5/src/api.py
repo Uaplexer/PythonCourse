@@ -1,9 +1,11 @@
 import csv
+import sqlite3
+
 from logger import setup_logger
 from db_connection import establish_db_connection
 from globals import USERS_TN, BANKS_TN, ACCOUNTS_TN, TRANSACTIONS_TN
-from validation import validate_accounts_data, validate_account_number, validate_account_type_and_status
-from utils import modify_users_data, get_query_params, get_table_columns_names, prepare_data
+from validation import validate_accounts_data, validate_account_number, validate_account_status, validate_account_type
+from utils import modify_users_data, get_query_params, get_table_columns_names
 from typing import Callable
 
 logger = setup_logger()
@@ -24,7 +26,7 @@ def add_data_from_csv(file_path: str, add_data_func: Callable):
 
 
 @establish_db_connection
-def add_table_records(cursor, table_name: str, data: list[dict]):
+def add_table_records(cursor: sqlite3.Cursor, table_name: str, data: list[dict] | dict):
     """
     Adds a records to the specified table.
 
@@ -34,13 +36,12 @@ def add_table_records(cursor, table_name: str, data: list[dict]):
     """
     table_columns = get_table_columns_names(table_name)
     placeholders = [':' + col_name for col_name in table_columns]
-    cursor.executemany(f'INSERT INTO {table_name} ({', '.join(table_columns)}) \
-                         VALUES ({', '.join(placeholders)})', data)
+    cursor.executemany(f'INSERT INTO {table_name} ({', '.join(table_columns)})VALUES ({', '.join(placeholders)})', data)
     logger.info(f'{table_name.capitalize()} in table {table_name} added successfully')
 
 
 @establish_db_connection
-def update_table_record(cursor, table_name: str, data: dict, record_id: int):
+def update_table_record(cursor: sqlite3.Cursor, table_name: str, data: dict, record_id: int):
     """
     Updates a record in the specified table.
 
@@ -51,13 +52,14 @@ def update_table_record(cursor, table_name: str, data: dict, record_id: int):
     """
     if not data:
         logger.warning('No data provided.')
+
     query_params = get_query_params(data)
     cursor.execute(f'UPDATE {table_name} SET {query_params} WHERE id = {record_id}')
     logger.info(f'Record with id {record_id} in table {table_name} updated successfully.')
 
 
 @establish_db_connection
-def delete_table_record(cursor, table_name: str, record_id: int):
+def delete_table_record(cursor: sqlite3.Cursor, table_name: str, record_id: int):
     """
     Deletes a record from the specified table.
 
@@ -75,9 +77,8 @@ def add_users(users_data: list):
 
     :param users_data: A list of dictionaries containing user data.
     """
-    rows = prepare_data(users_data)
-    modify_users_data(rows)
-    add_table_records(USERS_TN, rows)
+    users_data = modify_users_data(users_data)
+    add_table_records(USERS_TN, users_data)
 
 
 def update_user(user_data: dict, user_id: int):
@@ -105,8 +106,7 @@ def add_banks(banks_data: list):
 
     :param banks_data: A list of dictionaries containing bank data.
     """
-    rows = prepare_data(banks_data)
-    add_table_records(BANKS_TN, rows)
+    add_table_records(BANKS_TN, banks_data)
 
 
 def update_bank(bank_data: dict, bank_id: int):
@@ -135,8 +135,7 @@ def add_accounts(account_data: list):
     :param account_data: A list of dictionaries containing account data.
     """
     validate_accounts_data(account_data)
-    rows = prepare_data(account_data)
-    add_table_records(ACCOUNTS_TN, rows)
+    add_table_records(ACCOUNTS_TN, account_data)
 
 
 def update_account(account_data: dict, account_id: int):
@@ -147,7 +146,8 @@ def update_account(account_data: dict, account_id: int):
     :param account_id: The ID of the account to be updated.
     """
     validate_account_number(account_data.get('number', 'ID--du-mmy-99-numb'))
-    validate_account_type_and_status(account_data.get('type', 'credit'), account_data.get('status', 'gold'))
+    validate_account_type(account_data.get('type', 'credit'))
+    validate_account_status(account_data.get('status', 'gold'))
     update_table_record(ACCOUNTS_TN, account_data, account_id)
 
 
@@ -166,5 +166,4 @@ def add_transaction(transaction_data: dict):
 
     :param transaction_data: A dictionary containing transaction data.
     """
-    rows = prepare_data(transaction_data)
-    add_table_records(TRANSACTIONS_TN, rows)
+    add_table_records(TRANSACTIONS_TN, transaction_data)

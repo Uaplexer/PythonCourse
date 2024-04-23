@@ -1,4 +1,4 @@
-from api import add_banks, add_accounts, add_users, update_user
+from api import add_banks, add_accounts, add_users, update_user, update_account
 from globals import USERS_TN, BANKS_TN, ACCOUNTS_TN, TRANSACTIONS_TN
 from transactions import perform_transaction
 from utils import generate_discounts, get_users_full_names_with_debts, get_biggest_capital_bank, \
@@ -35,6 +35,8 @@ if __name__ == '__main__':
     add_users(users)
 
     update_user({'name': 'Evgen'}, 1)
+
+    update_account({'type': 'debit'}, 1)
 
     perform_transaction('ID--k4-bfe-12363-v', 'ID--r3-dd-32224-ja', 5000)
 

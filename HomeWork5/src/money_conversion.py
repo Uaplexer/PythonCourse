@@ -1,8 +1,8 @@
 import requests
 from logger import setup_logger
-from globals import API_KEY, API_URL
+from globals import API_KEY_CURRENCIES, API_URL_CURRENCIES
 
-params = {'apikey': API_KEY}
+params = {'apikey': API_KEY_CURRENCIES}
 
 logger = setup_logger()
 
@@ -24,7 +24,7 @@ def get_exchange_rate(base_currency_code: str, target_currency_code: str):
     params['base_currency'] = base_currency_code
     params['currencies'] = target_currency_code
 
-    response = requests.get(API_URL, params=params)
+    response = requests.get(API_URL_CURRENCIES, params=params)
 
     if response.status_code == 200:
         logger.info('Successfully fetched exchange rate')

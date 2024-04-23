@@ -1,9 +1,10 @@
 import sqlite3
 from functools import wraps
+from typing import Callable
 from globals import DB_NAME
 
 
-def establish_db_connection(func):
+def establish_db_connection(func: Callable) -> Callable:
     """
     Decorator for establishing a database connection and handling cursor management.
 
