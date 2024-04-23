@@ -1,5 +1,5 @@
 from api import add_banks, add_accounts, add_users, update_user
-from initial_db_setup_001 import USERS_TN, BANKS_TN, ACCOUNTS_TN, TRANSACTIONS_TN
+from globals import USERS_TN, BANKS_TN, ACCOUNTS_TN, TRANSACTIONS_TN
 from transactions import perform_transaction
 from utils import generate_discounts, get_users_full_names_with_debts, get_biggest_capital_bank, \
     get_bank_with_oldest_client, get_bank_with_most_unique_outbound_operations, get_user_transactions, \

@@ -1,22 +1,12 @@
 import argparse as argp
 import sqlite3
+from globals import DB_NAME, BANKS_TN, TRANSACTIONS_TN, USERS_TN, ACCOUNTS_TN
 
-DB_NAME = 'database.db'
-USERS_TN = 'users'
-BANKS_TN = 'banks'
-ACCOUNTS_TN = 'accounts'
-TRANSACTIONS_TN = 'transactions'
-
-
-def parse_args():
+if __name__ == '__main__':
     parser = argp.ArgumentParser()
     parser.add_argument('--unique', action='store_true',
                         help='Uniqueness for fields User.name and User.surname')
-    return parser.parse_args()
-
-
-if __name__ == '__main__':
-    args = parse_args()
+    args = parser.parse_args()
     unique_constraint = 'UNIQUE' if args.unique else ''
     connection = sqlite3.connect(DB_NAME)
     cursor = connection.cursor()

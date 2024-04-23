@@ -1,14 +1,13 @@
 import requests
 from logger import setup_logger
+from globals import API_KEY, API_URL
 
-API_URL = 'https://api.freecurrencyapi.com/v1/latest'
-API_KEY = 'fca_live_Ycr9NHeuLZqZ9LGlyHr4N993tCW99bBh2BR9ymNX'
 params = {'apikey': API_KEY}
 
 logger = setup_logger()
 
 
-def get_exchange_rate(base_currency_code, target_currency_code):
+def get_exchange_rate(base_currency_code: str, target_currency_code: str):
     """
     Get the exchange rate between two currencies using an API.
 
@@ -17,7 +16,7 @@ def get_exchange_rate(base_currency_code, target_currency_code):
 
     :param base_currency_code: The code of the base currency.
     :param target_currency_code: The code of the target currency.
-    :return: The exchange rate between the base and target currencies, or None if there is an error.
+    :return: The exchange rate between the base and target currencies, or None.
     """
     if base_currency_code == target_currency_code:
         return 1
@@ -31,6 +30,6 @@ def get_exchange_rate(base_currency_code, target_currency_code):
         logger.info('Successfully fetched exchange rate')
     elif response.status_code == 429:
         logger.error('You have hit your rate limit or your monthly limit')
-        return
+        return None
 
     return response.json().get('data').get(target_currency_code)

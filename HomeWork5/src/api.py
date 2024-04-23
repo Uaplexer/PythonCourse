@@ -1,14 +1,15 @@
 import csv
 from logger import setup_logger
 from db_connection import establish_db_connection
-from initial_db_setup_001 import USERS_TN, BANKS_TN, ACCOUNTS_TN, TRANSACTIONS_TN
+from globals import USERS_TN, BANKS_TN, ACCOUNTS_TN, TRANSACTIONS_TN
 from validation import validate_accounts_data, validate_account_number, validate_account_type_and_status
 from utils import modify_users_data, get_query_params, get_table_columns_names, prepare_data
+from typing import Callable
 
 logger = setup_logger()
 
 
-def add_data_from_csv(file_path: str, add_data_func):
+def add_data_from_csv(file_path: str, add_data_func: Callable):
     """
     Adds data from a CSV file using the specified function.
 
@@ -23,17 +24,18 @@ def add_data_from_csv(file_path: str, add_data_func):
 
 
 @establish_db_connection
-def add_table_record(cursor, table_name: str, data: dict):
+def add_table_records(cursor, table_name: str, data: list[dict]):
     """
-    Adds a record to the specified table.
+    Adds a records to the specified table.
 
     :param cursor: The database cursor object.
-    :param table_name: The name of the table to add the record to.
-    :param data: The data to be added as a record.
+    :param table_name: The name of the table to add the records to.
+    :param data: The data to be added as a records.
     """
     table_columns = get_table_columns_names(table_name)
+    placeholders = [':' + col_name for col_name in table_columns]
     cursor.executemany(f'INSERT INTO {table_name} ({', '.join(table_columns)}) \
-                         VALUES ({', '.join(['?'] * len(table_columns))})', data)
+                         VALUES ({', '.join(placeholders)})', data)
     logger.info(f'{table_name.capitalize()} in table {table_name} added successfully')
 
 
@@ -73,9 +75,9 @@ def add_users(users_data: list):
 
     :param users_data: A list of dictionaries containing user data.
     """
-    modify_users_data(users_data)
     rows = prepare_data(users_data)
-    add_table_record(USERS_TN, rows)
+    modify_users_data(rows)
+    add_table_records(USERS_TN, rows)
 
 
 def update_user(user_data: dict, user_id: int):
@@ -104,7 +106,7 @@ def add_banks(banks_data: list):
     :param banks_data: A list of dictionaries containing bank data.
     """
     rows = prepare_data(banks_data)
-    add_table_record(BANKS_TN, rows)
+    add_table_records(BANKS_TN, rows)
 
 
 def update_bank(bank_data: dict, bank_id: int):
@@ -134,7 +136,7 @@ def add_accounts(account_data: list):
     """
     validate_accounts_data(account_data)
     rows = prepare_data(account_data)
-    add_table_record(ACCOUNTS_TN, rows)
+    add_table_records(ACCOUNTS_TN, rows)
 
 
 def update_account(account_data: dict, account_id: int):
@@ -165,4 +167,4 @@ def add_transaction(transaction_data: dict):
     :param transaction_data: A dictionary containing transaction data.
     """
     rows = prepare_data(transaction_data)
-    add_table_record(TRANSACTIONS_TN, rows)
+    add_table_records(TRANSACTIONS_TN, rows)

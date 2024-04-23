@@ -1,6 +1,6 @@
 import sqlite3
 from functools import wraps
-from initial_db_setup_001 import DB_NAME
+from globals import DB_NAME
 
 
 def establish_db_connection(func):

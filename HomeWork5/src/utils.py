@@ -1,9 +1,13 @@
 import re
 import random
+import sqlite3
+
 from logger import setup_logger
 from datetime import timedelta, datetime
 from db_connection import establish_db_connection
 from initial_db_setup_001 import USERS_TN, ACCOUNTS_TN, BANKS_TN, TRANSACTIONS_TN
+
+AVAILABLE_DISCOUNTS = [25, 30, 50]
 
 logger = setup_logger()
 
@@ -12,16 +16,15 @@ def prepare_data(data: list[dict] | dict) -> list[tuple]:
     """
     Prepare data for database insertion.
 
-    Converts input data into a list of tuples suitable for insertion into a database table.
+    Converts input data into a list if necessary.
 
     :param data: Data to be prepared. It can be a list of dictionaries or a single dictionary.
-    :return: A list of tuples, each tuple representing a row of data.
+    :return: A list of dicts.
     """
-    data = data if isinstance(data, list) else [data]
-    return [tuple(row.values()) for row in data]
+    return data if isinstance(data, list) else [data]
 
 
-def serialize_data(cursor, record_data: list) -> dict:
+def serialize_data(cursor: sqlite3.Cursor, record_data: list) -> dict:
     """
     Serialize database record data into a dictionary.
 
@@ -44,7 +47,7 @@ def get_query_params(data: dict):
     :param data: Dictionary containing key-value pairs for the update operation.
     :return: String containing the formatted query parameters.
     """
-    return ', '.join([f"{key} = '{value}'" for key, value in data.items()])
+    return ', '.join([f"{key} = {val!r}" if isinstance(val, str) else f'{key} = {val}' for key, val in data.items()])
 
 
 def get_first_element_if_not_empty(collection):
@@ -59,7 +62,7 @@ def get_first_element_if_not_empty(collection):
 
 
 @establish_db_connection
-def clear_table(cursor, table_name: str):
+def clear_table(cursor: sqlite3.Cursor, table_name: str):
     """
        Clears all records from the specified table.
 
@@ -71,7 +74,7 @@ def clear_table(cursor, table_name: str):
 
 
 @establish_db_connection
-def get_table_columns_names(cursor, table_name: str):
+def get_table_columns_names(cursor: sqlite3.Cursor, table_name: str):
     """
     Get the column names of a database table.
 
@@ -88,7 +91,8 @@ def get_table_columns_names(cursor, table_name: str):
 
 
 @establish_db_connection
-def get_record_by_condition(cursor, table_name: str, query_key: str, query_value, cols: list[str] | None = None,
+def get_record_by_condition(cursor: sqlite3.Cursor, table_name: str, query_key: str, query_value,
+                            cols: list[str] | None = None,
                             serialize: bool = True):
     """
     Get a record from a database table based on a condition.
@@ -105,7 +109,7 @@ def get_record_by_condition(cursor, table_name: str, query_key: str, query_value
     """
     cursor.execute(f"SELECT {', '.join(cols) if cols else '*'} \
                      FROM {table_name} \
-                     WHERE {query_key} = {f"'{query_value}'" if isinstance(query_value, str) else query_value}")
+                     WHERE {query_key} = {f'{query_value!r}' if isinstance(query_value, str) else query_value}")
     record = cursor.fetchone()
     if record:
         logger.info(f'Retrieved record from table {table_name} with condition {query_key} = {query_value}')
@@ -274,41 +278,49 @@ def generate_discounts(user_amount: int):
 
     random_user_ids = random.sample(users_ids, user_amount)
     logger.info(f'Generated discounts for {user_amount} users')
-    return dict(zip(random_user_ids, [random.choice([25, 30, 50]) for _ in range(user_amount)]))
+    return dict(zip(random_user_ids, [random.choice(AVAILABLE_DISCOUNTS) for _ in range(user_amount)]))
 
 
-def clean_and_split_full_name(full_name: str):
+def clean_full_name(full_name: str):
     """
-    Clean and split a full name into first name and last name.
+    Clean a full name by removing non-alphabetic characters.
 
-    Cleans a full name by removing non-alphabetic characters, then splits it into first name and last name.
-
-    :param full_name: The full name to be cleaned and split.
-    :return: A tuple containing the cleaned first name and last name.
+    :param full_name: The full name to be cleaned.
+    :return: The cleaned full name.
     """
     if not full_name:
-        logger.warning(f'No full name provided')
-        return ['', '']
+        logger.warning('No full name provided')
+        return ''
 
     cleaned_name = re.sub(r'[^a-zA-Z\s]', '', full_name)
     logger.info(f'Cleaned full name: {full_name} -> {cleaned_name}')
-    return re.split(r'\s+', cleaned_name.strip())
+    return cleaned_name
+
+
+def split_full_name(cleaned_name: str):
+    """
+    Split a cleaned full name into first name and last name.
+
+    :param cleaned_name: The cleaned full name to be split.
+    :return: A tuple containing the first name and last name.
+    """
+    if not cleaned_name:
+        logger.warning('No cleaned name provided')
+        return ['', '']
+
+    return tuple(re.split(r'\s+', cleaned_name.strip()))
 
 
 def modify_users_data(users_data: list):
     """
     Modify user data by cleaning and ordering fields.
 
-    Modifies user data by cleaning the full name and reordering fields in each user dictionary.
+    Modifies user data by cleaning the full name.
 
     :param users_data: List of user dictionaries to be modified.
     """
     for user in users_data:
-        name, surname = clean_and_split_full_name(user['full_name'])
-        ordered_user = {'name': name,
-                        'surname': surname,
-                        'birth_day': user['birth_day'],
-                        'accounts': user['accounts']}
-        user.clear()
-        user.update(ordered_user)
+        full_name = clean_full_name(user.get('full_name'))
+        user['name'], user['surname'] = split_full_name(full_name)
+
     logger.info(f'Modified user data records')

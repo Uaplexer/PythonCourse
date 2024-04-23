@@ -23,22 +23,22 @@ def perform_transaction(sender_account_number: str, receiver_account_number: str
     """
     if amount < 0:
         logger.error('Transaction amount is negative')
-        return
+        return None
 
     sender_account = get_record_by_condition(ACCOUNTS_TN, 'number', sender_account_number)
     receiver_account = get_record_by_condition(ACCOUNTS_TN, 'number', receiver_account_number)
 
     if sender_account.get('amount', 0) < amount:
         logger.error('Sender have less money than it sends')
-        return
+        return None
 
     if not sender_account:
         logger.error(f'Sender account number {sender_account_number} not found')
-        return
+        return None
 
     if not receiver_account:
         logger.error(f'Receiver account number {receiver_account_number} not found')
-        return
+        return None
 
     exchange_rate = get_exchange_rate(sender_account['currency'], receiver_account['currency'])
 
