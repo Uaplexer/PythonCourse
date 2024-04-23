@@ -99,8 +99,8 @@ def get_record_by_condition(cursor, table_name: str, query_key: str, query_value
     :param table_name: The name of the table to query.
     :param query_key: The column name to use for the query condition.
     :param query_value: The value to match in the specified column.
-    :param cols: Columns of record to retrieve
-    :param serialize:
+    :param cols: Columns names of record to retrieve.
+    :param serialize: Serializes data to dict.
     :return: A dictionary representing the retrieved record if found, otherwise None.
     """
     cursor.execute(f"SELECT {', '.join(cols) if cols else '*'} \
