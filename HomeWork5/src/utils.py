@@ -2,10 +2,10 @@ import re
 import random
 import sqlite3
 
-from logger import setup_logger
-from datetime import timedelta, datetime
-from db_connection import establish_db_connection
-from globals import USERS_TN, ACCOUNTS_TN, BANKS_TN, TRANSACTIONS_TN, AVAILABLE_DISCOUNTS
+from HomeWork5.src.logger import setup_logger
+from datetime import datetime
+from HomeWork5.src.db_connection import establish_db_connection
+from HomeWork5.src.globals import USERS_TN, BANKS_TN, AVAILABLE_DISCOUNTS
 
 logger = setup_logger()
 
@@ -45,6 +45,34 @@ def get_first_element_if_not_empty(collection):
     """
     if collection:
         return collection[0]
+    return None
+
+
+def get_transaction_data(sender_account: dict, receiver_account: dict, amount: int, time=None):
+    """
+        Constructs a dictionary representing transaction data based on sender and receiver account information.
+
+        :param sender_account: A dictionary representing sender account information.
+        :param receiver_account: A dictionary representing receiver account information.
+        :param amount: The amount of currency being sent in the transaction.
+        :param time: A string representing the timestamp of the transaction.
+
+        :return: A dictionary containing transaction data.
+        """
+    sender_bank_name = get_record_by_condition(BANKS_TN, 'id', sender_account.get('bank_id'), serialize=True).get(
+        'name')
+    receiver_bank_name = get_record_by_condition(BANKS_TN, 'id', receiver_account.get('bank_id'), serialize=True).get(
+        'name')
+
+    return {
+        'bank_sender_name': sender_bank_name,
+        'bank_receiver_name': receiver_bank_name,
+        'account_sender_id': sender_account.get('id'),
+        'account_receiver_id': receiver_account.get('id'),
+        'sent_currency': sender_account.get('currency'),
+        'sent_amount': amount,
+        'datetime': time if time else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
 
 
 @establish_db_connection
@@ -137,120 +165,6 @@ def get_users_ids(cursor: sqlite3.Cursor):
         return [row[0] for row in rows]
 
 
-@establish_db_connection
-def get_users_full_names_with_debts(cursor: sqlite3.Cursor):
-    """
-    Get the full names of users with negative account balances.
-
-    Retrieves and returns the full names of users who have negative balances in their accounts.
-
-    :param cursor: The database cursor object.
-    :return: A list of full names for users with negative balances.
-    """
-    cursor.execute(f'SELECT {USERS_TN}.name, {USERS_TN}.surname \
-                     FROM {USERS_TN} \
-                     JOIN {ACCOUNTS_TN} ON {USERS_TN}.id = {ACCOUNTS_TN}.user_id \
-                     WHERE {ACCOUNTS_TN}.amount < 0')
-    users = cursor.fetchall()
-    if users:
-        logger.info('Retrieved full names of users with negative account balances')
-        return [' '.join(user) for user in users]
-
-
-@establish_db_connection
-def get_biggest_capital_bank(cursor: sqlite3.Cursor):
-    """
-    Get the name of the bank with the largest total capital.
-
-    Retrieves and returns the name of the bank with the largest total capital based on account balances.
-
-    :param cursor: The database cursor object.
-    :return: The name of the bank with the largest total capital.
-    """
-    cursor.execute(f'SELECT {BANKS_TN}.name \
-                     FROM {BANKS_TN} \
-                     JOIN {ACCOUNTS_TN} ON {BANKS_TN}.id = {ACCOUNTS_TN}.bank_id \
-                     GROUP BY {BANKS_TN}.name \
-                     ORDER BY SUM({ACCOUNTS_TN}.amount) DESC')
-    logger.info('Retrieved bank with the largest total capital')
-    return get_first_element_if_not_empty(cursor.fetchone())
-
-
-@establish_db_connection
-def get_bank_with_oldest_client(cursor: sqlite3.Cursor):
-    """
-    Get the name of the bank with the oldest client.
-
-    Retrieves and returns the name of the bank with the oldest client based on client birthdates.
-
-    :param cursor: The database cursor object.
-    :return: The name of the bank with the oldest client.
-    """
-    cursor.execute(f'SELECT {BANKS_TN}.name \
-                     FROM {BANKS_TN} \
-                     JOIN {ACCOUNTS_TN} ON {BANKS_TN}.id = {ACCOUNTS_TN}.bank_id \
-                     JOIN {USERS_TN} ON {ACCOUNTS_TN}.user_id = {USERS_TN}.id \
-                     GROUP BY {BANKS_TN}.name \
-                     ORDER BY MIN({USERS_TN}.birth_day)')
-    logger.info('Retrieved bank with the oldest client')
-    return get_first_element_if_not_empty(cursor.fetchone())
-
-
-@establish_db_connection
-def get_bank_with_most_unique_outbound_operations(cursor: sqlite3.Cursor):
-    """
-    Get the name of the bank with the most unique outbound operations.
-
-    Retrieves and returns the name of the bank with the most unique outbound operations.
-
-    :param cursor: The database cursor object.
-    :return: The name of the bank with the most unique outbound operations.
-    """
-    cursor.execute(f'SELECT bank_sender_name \
-                     FROM {TRANSACTIONS_TN} \
-                     JOIN {ACCOUNTS_TN} ON {TRANSACTIONS_TN}.account_sender_id = {ACCOUNTS_TN}.id \
-                     GROUP BY bank_sender_name \
-                     ORDER BY COUNT(DISTINCT {ACCOUNTS_TN}.user_id) DESC')
-    logger.info('Retrieved bank with the most unique outbound operations')
-    return get_first_element_if_not_empty(cursor.fetchone())
-
-
-@establish_db_connection
-def get_user_transactions(cursor: sqlite3.Cursor, user_id: int, days: int = None):
-    """
-    Get all transactions for a specific user within a specified number of past days.
-
-    Retrieves and returns all transactions associated with a specific user ID within a specified time frame
-    based on the number of past days provided.
-
-    :param cursor: The database cursor object.
-    :param user_id: The ID of the user to retrieve transactions for.
-    :param days: The number of past days to consider for retrieving transactions.
-                 If None (default), retrieves all transactions regardless of date.
-    :return: A list of transactions for the specified user within the specified time frame.
-    """
-    start_date = datetime.now() - timedelta(days=days)
-    cursor.execute(f'SELECT * FROM {TRANSACTIONS_TN} \
-                     WHERE account_sender_id = {user_id} \
-                     {f"AND {TRANSACTIONS_TN}.datetime >= '{start_date.strftime('%Y-%m-%d %H:%M:%S')}'" if days else ""}')
-    logger.info(f'Retrieved transactions for user ID {user_id}')
-    return cursor.fetchall()
-
-
-@establish_db_connection
-def delete_empty_users(cursor: sqlite3.Cursor):
-    """
-    Delete users with empty fields.
-
-    Deletes users from the database whose name, surname, birth_day, or accounts fields are empty.
-
-    :param cursor: The database cursor object.
-    """
-    cursor.execute(f"DELETE FROM {USERS_TN} \
-                     WHERE {" = '' OR ".join(get_table_columns_names(USERS_TN))} = '' ")
-    logger.info('Deleted users with empty fields')
-
-
 def generate_discounts(user_amount: int):
     """
     Generate discounts for a specified number of users.
@@ -281,9 +195,9 @@ def rearrange_full_name(full_name: str):
     cleaned_name = re.sub(r'[^a-zA-Z\s]', '', full_name)
     logger.info(f'Cleaned full name: {full_name} -> {cleaned_name}')
 
-    splitted_full_name = tuple(re.split(r'\s+', cleaned_name.strip()))
-    logger.info(f'Splitted full name: {cleaned_name} -> {splitted_full_name}')
-    return splitted_full_name
+    split_full_name = tuple(re.split(r'\s+', cleaned_name.strip()))
+    logger.info(f'Split full name: {cleaned_name} -> {split_full_name}')
+    return split_full_name
 
 
 def modify_users_data(users_data: list[dict]):
@@ -296,5 +210,4 @@ def modify_users_data(users_data: list[dict]):
 
     return [{**user, 'name': full_name_parts[0], 'surname': full_name_parts[1]}
             for user in users_data
-            if (full_name_parts := rearrange_full_name(user.pop('user_full_name')))]
-
+            if (full_name_parts := rearrange_full_name(user.pop('full_name')))]

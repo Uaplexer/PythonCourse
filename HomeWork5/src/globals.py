@@ -12,6 +12,7 @@ TRANSACTIONS_TN = 'transactions'
 API_URL_CURRENCIES = 'https://api.freecurrencyapi.com/v1/latest'
 API_KEY_CURRENCIES = os.getenv('API_KEY_CURRENCIES')
 
+ALLOWED_ACCOUNT_LENGTH = 18
 AVAILABLE_DISCOUNTS = [25, 30, 50]
 
 VALID_TYPES = ['credit', 'debit']

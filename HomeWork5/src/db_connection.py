@@ -1,7 +1,7 @@
 import sqlite3
 from functools import wraps
 from typing import Callable
-from globals import DB_NAME
+from HomeWork5.src.globals import DB_NAME
 
 
 def establish_db_connection(func: Callable) -> Callable:

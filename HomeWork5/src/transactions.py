@@ -1,9 +1,11 @@
 from datetime import datetime
-from utils import get_record_by_condition
+
+from validation import validate_transaction
+from utils import get_record_by_condition, get_transaction_data
 from api import update_account, add_transaction
-from money_conversion import get_exchange_rate
+from money_conversion import convert_currency
 from logger import setup_logger
-from initial_db_setup_001 import ACCOUNTS_TN, BANKS_TN
+from initial_db_setup_001 import ACCOUNTS_TN
 
 logger = setup_logger()
 
@@ -28,41 +30,17 @@ def perform_transaction(sender_account_number: str, receiver_account_number: str
     sender_account = get_record_by_condition(ACCOUNTS_TN, 'number', sender_account_number)
     receiver_account = get_record_by_condition(ACCOUNTS_TN, 'number', receiver_account_number)
 
-    if sender_account.get('amount', 0) < amount:
-        logger.error('Sender have less money than it sends')
+    if not validate_transaction(sender_account, receiver_account, amount):
+        logger.error('Invalid transaction')
         return None
 
-    if not sender_account:
-        logger.error(f'Sender account number {sender_account_number} not found')
-        return None
-
-    if not receiver_account:
-        logger.error(f'Receiver account number {receiver_account_number} not found')
-        return None
-
-    exchange_rate = get_exchange_rate(sender_account.get('currency'), receiver_account.get('currency'))
-
+    converted_amount = convert_currency(amount, sender_account.get('currency'), receiver_account.get('currency'))
     new_sender_amount = sender_account.get('amount') - amount
-    new_receiver_amount = receiver_account.get('amount') + (amount * exchange_rate)
+    new_receiver_amount = receiver_account.get('amount') + converted_amount
 
-    account_sender_id = sender_account.get('id')
-    account_receiver_id = receiver_account.get('id')
+    transaction_data = get_transaction_data(sender_account, receiver_account, amount, time)
 
-    update_account({'amount': new_sender_amount}, account_sender_id)
-    update_account({'amount': new_receiver_amount}, account_receiver_id)
-
-    sender_bank_name = get_record_by_condition(BANKS_TN, 'id', sender_account.get('bank_id')).get('name')
-    receiver_bank_name = get_record_by_condition(BANKS_TN, 'id', receiver_account.get('bank_id')).get('name')
-
-    transaction_data = {
-        'bank_sender_name': sender_bank_name,
-        'bank_receiver_name': receiver_bank_name,
-        'account_sender_id': account_sender_id,
-        'account_receiver_id': account_receiver_id,
-        'sent_currency': sender_account['currency'],
-        'sent_amount': amount,
-        'datetime': time if time else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    }
-
+    update_account({'amount': new_sender_amount}, transaction_data.get('account_sender_id'))
+    update_account({'amount': new_receiver_amount}, transaction_data.get('account_receiver_id'))
     add_transaction(transaction_data)
     logger.info('Transaction performed successfully!')

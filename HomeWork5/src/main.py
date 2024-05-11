@@ -1,14 +1,15 @@
+from HomeWork5.src.db_tasks_sql import get_user_transactions
+from db_tasks import get_users_full_names_with_debts, get_biggest_capital_bank, get_banks_with_oldest_client, \
+    get_bank_with_most_unique_outbound_operations, delete_empty_users
 from api import add_banks, add_accounts, add_users, update_user, update_account
 from globals import USERS_TN, BANKS_TN, ACCOUNTS_TN, TRANSACTIONS_TN
 from transactions import perform_transaction
-from utils import generate_discounts, get_users_full_names_with_debts, get_biggest_capital_bank, \
-    get_bank_with_oldest_client, get_bank_with_most_unique_outbound_operations, get_user_transactions, \
-    delete_empty_users, clear_table
+from utils import generate_discounts, clear_table
 
 if __name__ == '__main__':
     users = [
-        {'full_name': 'Andrey Andreev', 'birth_day': '2000-08-04', 'accounts': 'ID--k4-bfe-12363-v'},
-        {'full_name': 'Danil Danilov', 'birth_day': '2001-01-15', 'accounts': 'ID--r3-dd-32224-ja'}
+        {'full_name': 'Andrey Andreev', 'birth_day': '2000-08-04', 'accounts': 'ID--k4-bfe-12363-v,ID--m2-ef-74532-ls'},
+        {'full_name': 'Danil Danilov', 'birth_day': '2001-01-15', 'accounts': 'ID--r3-dd-32224-ja,ID--p7-cd-98236-tf'}
     ]
     banks = [
         {'name': 'Privat'},
@@ -19,9 +20,9 @@ if __name__ == '__main__':
          'amount': 7773, 'status': 'silver'},
         {'user_id': 2, 'type': 'credit', 'number': 'ID--r3-dd-32224-ja', 'bank_id': 2, 'currency': 'EUR',
          'amount': 5555, 'status': 'gold'},
-        {'user_id': 3, 'type': 'debit', 'number': 'ID--p7-cd-98236-tf', 'bank_id': 2, 'currency': 'GBP',
-         'amount': 9999, 'status': 'platinum'},
-        {'user_id': 4, 'type': 'credit', 'number': 'ID--m2-ef-74532-ls', 'bank_id': 2, 'currency': 'USD',
+        {'user_id': 2, 'type': 'debit', 'number': 'ID--p7-cd-98236-tf', 'bank_id': 2, 'currency': 'GBP',
+         'amount': -9999, 'status': 'platinum'},
+        {'user_id': 1, 'type': 'credit', 'number': 'ID--m2-ef-74532-ls', 'bank_id': 2, 'currency': 'USD',
          'amount': 12345, 'status': 'gold'},
     ]
 
@@ -47,7 +48,7 @@ if __name__ == '__main__':
     print(generate_discounts(2))
     print(get_users_full_names_with_debts())
     print(get_biggest_capital_bank())
-    print(get_bank_with_oldest_client())
+    print(get_banks_with_oldest_client())
     print(get_bank_with_most_unique_outbound_operations())
     print(get_user_transactions(1, 30))
     delete_empty_users()

@@ -1,12 +1,12 @@
 import csv
 import sqlite3
 
-from logger import setup_logger
-from db_connection import establish_db_connection
-from globals import USERS_TN, BANKS_TN, ACCOUNTS_TN, TRANSACTIONS_TN
-from validation import validate_accounts_data, validate_account_number, validate_account_status, validate_account_type
-from utils import modify_users_data, get_query_params, get_table_columns_names
-from typing import Callable
+from HomeWork5.src.logger import setup_logger
+from HomeWork5.src.db_connection import establish_db_connection
+from HomeWork5.src.globals import USERS_TN, BANKS_TN, ACCOUNTS_TN, TRANSACTIONS_TN
+from HomeWork5.src.validation import validate_accounts_data, validate_account_number, validate_account_status, validate_account_type
+from HomeWork5.src.utils import modify_users_data, get_query_params, get_table_columns_names
+from typing import Callable, Union
 
 logger = setup_logger()
 
@@ -19,14 +19,14 @@ def add_data_from_csv(file_path: str, add_data_func: Callable):
     :param add_data_func: The function to add data to the database.
     :return: Function call to add data to the database.
     """
-    with open(file_path, 'r') as csvf:
-        reader = list(csv.DictReader(csvf))
+    with open(file_path, 'r') as csv_file:
+        reader = list(csv.DictReader(csv_file))
         logger.info(f'Got data from csv file {file_path}')
-        return add_data_func(reader)
+        add_data_func(reader)
 
 
 @establish_db_connection
-def add_table_records(cursor: sqlite3.Cursor, table_name: str, data: list[dict] | dict):
+def add_table_records(cursor: sqlite3.Cursor, table_name: str, data: Union[list[dict], dict]):
     """
     Adds a records to the specified table.
 
@@ -34,9 +34,12 @@ def add_table_records(cursor: sqlite3.Cursor, table_name: str, data: list[dict] 
     :param table_name: The name of the table to add the records to.
     :param data: The data to be added as a records.
     """
+    if isinstance(data, dict):
+        data = [data]
+
     table_columns = get_table_columns_names(table_name)
     placeholders = [':' + col_name for col_name in table_columns]
-    cursor.executemany(f'INSERT INTO {table_name} ({', '.join(table_columns)})VALUES ({', '.join(placeholders)})', data)
+    cursor.executemany(f'INSERT INTO {table_name} ({', '.join(table_columns)}) VALUES ({', '.join(placeholders)})', data)
     logger.info(f'{table_name.capitalize()} in table {table_name} added successfully')
 
 
@@ -50,16 +53,16 @@ def update_table_record(cursor: sqlite3.Cursor, table_name: str, data: dict, rec
     :param data: The data to be updated.
     :param record_id: The ID of the record to be updated.
     """
-    if not data:
+    if data:
+        query_params = get_query_params(data)
+        cursor.execute(f'UPDATE {table_name} SET {query_params} WHERE id = {record_id}')
+        logger.info(f'Record with id {record_id} in table {table_name} updated successfully.')
+    else:
         logger.warning('No data provided.')
-
-    query_params = get_query_params(data)
-    cursor.execute(f'UPDATE {table_name} SET {query_params} WHERE id = {record_id}')
-    logger.info(f'Record with id {record_id} in table {table_name} updated successfully.')
 
 
 @establish_db_connection
-def delete_table_record(cursor: sqlite3.Cursor, table_name: str, record_id: int):
+def delete_table_record(cursor: sqlite3.Cursor, table_name: str, record_id: int) -> None:
     """
     Deletes a record from the specified table.
 
@@ -145,9 +148,13 @@ def update_account(account_data: dict, account_id: int):
     :param account_data: A dictionary containing new account data.
     :param account_id: The ID of the account to be updated.
     """
-    validate_account_number(account_data.get('number', 'ID--du-mmy-99-numb'))
-    validate_account_type(account_data.get('type', 'credit'))
-    validate_account_status(account_data.get('status', 'gold'))
+    if account_number := account_data.get('number'):
+        validate_account_number(account_number)
+    if account_type := account_data.get('type'):
+        validate_account_type(account_type)
+    if account_status := account_data.get('status'):
+        validate_account_status(account_status)
+
     update_table_record(ACCOUNTS_TN, account_data, account_id)
 
 
@@ -167,3 +174,7 @@ def add_transaction(transaction_data: dict):
     :param transaction_data: A dictionary containing transaction data.
     """
     add_table_records(TRANSACTIONS_TN, transaction_data)
+
+
+if __name__ == '__main__':
+    pass
