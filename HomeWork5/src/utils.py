@@ -1,16 +1,16 @@
-import re
-import random
-import sqlite3
+from re import sub, split
+from sqlite3 import Cursor
+from typing import Union, Optional
 
 from HomeWork5.src.logger import setup_logger
 from datetime import datetime
 from HomeWork5.src.db_connection import establish_db_connection
-from HomeWork5.src.globals import USERS_TN, BANKS_TN, AVAILABLE_DISCOUNTS
+from HomeWork5.src.consts import USERS_TN, BANKS_TN, VALID_DATETIME_PATTERN, FULL_NAME_CLEAR_REGEX
 
 logger = setup_logger()
 
 
-def serialize_data(cursor: sqlite3.Cursor, record_data: list) -> dict:
+def serialize_data(cursor: Cursor, record_data: list) -> dict:
     """
     Serialize database record data into a dictionary.
 
@@ -18,6 +18,7 @@ def serialize_data(cursor: sqlite3.Cursor, record_data: list) -> dict:
 
     :param cursor: The database cursor object.
     :param record_data: Data retrieved from a database record.
+
     :return: A dictionary representing the serialized record data.
     """
     column_names = [desc[0] for desc in cursor.description]
@@ -31,9 +32,11 @@ def get_query_params(data: dict):
     Converts a dictionary of data into query parameters for an SQL UPDATE statement.
 
     :param data: Dictionary containing key-value pairs for the update operation.
+
     :return: String containing the formatted query parameters.
     """
-    return ', '.join([f'{key} = {val!r}' if isinstance(val, str) else f'{key} = {val}' for key, val in data.items()])
+    return ', '.join([f'{key} = {val!r}' if isinstance(val, str) else f'{key} = {val}'
+                      for key, val in data.items()])
 
 
 def get_first_element_if_not_empty(collection):
@@ -41,28 +44,25 @@ def get_first_element_if_not_empty(collection):
     Returns the first element of a collection if the collection is not empty.
 
     :param collection: The collection to check.
+
     :return: The first element of the collection if it is not empty, otherwise None.
     """
-    if collection:
-        return collection[0]
-    return None
+    return collection[0] if collection else None
 
 
 def get_transaction_data(sender_account: dict, receiver_account: dict, amount: int, time=None):
     """
-        Constructs a dictionary representing transaction data based on sender and receiver account information.
+    Constructs a dictionary representing transaction data based on sender and receiver account information.
 
-        :param sender_account: A dictionary representing sender account information.
-        :param receiver_account: A dictionary representing receiver account information.
-        :param amount: The amount of currency being sent in the transaction.
-        :param time: A string representing the timestamp of the transaction.
+    :param sender_account: A dictionary representing sender account information.
+    :param receiver_account: A dictionary representing receiver account information.
+    :param amount: The amount of currency being sent in the transaction.
+    :param time: A string representing the timestamp of the transaction.
 
-        :return: A dictionary containing transaction data.
-        """
-    sender_bank_name = get_record_by_condition(BANKS_TN, 'id', sender_account.get('bank_id'), serialize=True).get(
-        'name')
-    receiver_bank_name = get_record_by_condition(BANKS_TN, 'id', receiver_account.get('bank_id'), serialize=True).get(
-        'name')
+    :return: A dictionary containing transaction data.
+    """
+    sender_bank_name = get_record(BANKS_TN, 'id', sender_account.get('bank_id')).get('name')
+    receiver_bank_name = get_record(BANKS_TN, 'id', receiver_account.get('bank_id')).get('name')
 
     return {
         'bank_sender_name': sender_bank_name,
@@ -71,24 +71,12 @@ def get_transaction_data(sender_account: dict, receiver_account: dict, amount: i
         'account_receiver_id': receiver_account.get('id'),
         'sent_currency': sender_account.get('currency'),
         'sent_amount': amount,
-        'datetime': time if time else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        'datetime': time if time else datetime.now().strftime(VALID_DATETIME_PATTERN)
     }
 
 
 @establish_db_connection
-def clear_table(cursor: sqlite3.Cursor, table_name: str):
-    """
-       Clears all records from the specified table.
-
-       :param cursor: The database cursor object.
-       :param table_name: The name of the table to clear.
-    """
-    cursor.execute(f'DELETE FROM {table_name}')
-    logger.info(f'Cleared table {table_name}')
-
-
-@establish_db_connection
-def get_table_columns_names(cursor: sqlite3.Cursor, table_name: str):
+def get_table_columns_names(cursor: Cursor, table_name: str):
     """
     Get the column names of a database table.
 
@@ -105,9 +93,9 @@ def get_table_columns_names(cursor: sqlite3.Cursor, table_name: str):
 
 
 @establish_db_connection
-def get_record_by_condition(cursor: sqlite3.Cursor, table_name: str, query_key: str, query_value,
-                            cols: list[str] | None = None,
-                            serialize: bool = True):
+def get_record(cursor: Cursor, table_name: str, query_key: str, query_value: Union[str, int],
+               cols: Optional[list[str]] = None,
+               serialize: bool = True):
     """
     Get a record from a database table based on a condition.
 
@@ -131,7 +119,7 @@ def get_record_by_condition(cursor: sqlite3.Cursor, table_name: str, query_key: 
 
 
 @establish_db_connection
-def get_table_length(cursor: sqlite3.Cursor, table_name: str):
+def get_table_length(cursor: Cursor, table_name: str):
     """
     Get the number of rows in a database table.
 
@@ -148,7 +136,7 @@ def get_table_length(cursor: sqlite3.Cursor, table_name: str):
 
 
 @establish_db_connection
-def get_users_ids(cursor: sqlite3.Cursor):
+def get_users_ids(cursor: Cursor):
     """
     Get the IDs of all users in the database.
 
@@ -165,22 +153,6 @@ def get_users_ids(cursor: sqlite3.Cursor):
         return [row[0] for row in rows]
 
 
-def generate_discounts(user_amount: int):
-    """
-    Generate discounts for a specified number of users.
-
-    Generates random discounts for a specified number of users and returns them as a dictionary.
-
-    :param user_amount: The number of users for which discounts should be generated.
-    :return: A dictionary mapping user IDs to their respective discounts.
-    """
-    users_ids = get_users_ids()
-
-    random_user_ids = random.sample(users_ids, user_amount)
-    logger.info(f'Generated discounts for {user_amount} users')
-    return dict(zip(random_user_ids, [random.choice(AVAILABLE_DISCOUNTS) for _ in range(user_amount)]))
-
-
 def rearrange_full_name(full_name: str):
     """
     Clean a full name by removing non-alphabetic characters and split a cleaned full name into first name and last name.
@@ -190,24 +162,22 @@ def rearrange_full_name(full_name: str):
     """
     if not full_name:
         logger.error('No full name provided')
-        raise ValueError('No full name provided')
+        return None
 
-    cleaned_name = re.sub(r'[^a-zA-Z\s]', '', full_name)
+    cleaned_name = sub(FULL_NAME_CLEAR_REGEX, '', full_name)
     logger.info(f'Cleaned full name: {full_name} -> {cleaned_name}')
 
-    split_full_name = tuple(re.split(r'\s+', cleaned_name.strip()))
+    split_full_name = tuple(split(r'\s+', cleaned_name.strip()))
     logger.info(f'Split full name: {cleaned_name} -> {split_full_name}')
     return split_full_name
 
 
 def modify_users_data(users_data: list[dict]):
     """
-
     Modifies user data by cleaning and splitting the full name.
 
     :param users_data: List of user dictionaries to be modified.
     """
-
     return [{**user, 'name': full_name_parts[0], 'surname': full_name_parts[1]}
             for user in users_data
             if (full_name_parts := rearrange_full_name(user.pop('full_name')))]

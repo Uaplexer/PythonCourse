@@ -1,11 +1,13 @@
-import csv
-import sqlite3
+from csv import DictReader
+from sqlite3 import Cursor
 
 from HomeWork5.src.logger import setup_logger
 from HomeWork5.src.db_connection import establish_db_connection
-from HomeWork5.src.globals import USERS_TN, BANKS_TN, ACCOUNTS_TN, TRANSACTIONS_TN
-from HomeWork5.src.validation import validate_accounts_data, validate_account_number, validate_account_status, validate_account_type
 from HomeWork5.src.utils import modify_users_data, get_query_params, get_table_columns_names
+from HomeWork5.src.consts import USERS_TN, BANKS_TN, ACCOUNTS_TN, TRANSACTIONS_TN, NUMBER_CN, TYPE_CN, STATUS_CN
+from HomeWork5.src.validation import validate_accounts_data, validate_account_number, validate_account_status, \
+    validate_account_type
+
 from typing import Callable, Union
 
 logger = setup_logger()
@@ -20,13 +22,13 @@ def add_data_from_csv(file_path: str, add_data_func: Callable):
     :return: Function call to add data to the database.
     """
     with open(file_path, 'r') as csv_file:
-        reader = list(csv.DictReader(csv_file))
+        reader = list(DictReader(csv_file))
         logger.info(f'Got data from csv file {file_path}')
         add_data_func(reader)
 
 
 @establish_db_connection
-def add_table_records(cursor: sqlite3.Cursor, table_name: str, data: Union[list[dict], dict]):
+def add_table_records(cursor: Cursor, table_name: str, data: Union[list[dict], dict]):
     """
     Adds a records to the specified table.
 
@@ -38,13 +40,15 @@ def add_table_records(cursor: sqlite3.Cursor, table_name: str, data: Union[list[
         data = [data]
 
     table_columns = get_table_columns_names(table_name)
-    placeholders = [':' + col_name for col_name in table_columns]
-    cursor.executemany(f'INSERT INTO {table_name} ({', '.join(table_columns)}) VALUES ({', '.join(placeholders)})', data)
+    placeholders = [f':{col_name}' for col_name in table_columns]
+
+    cursor.executemany(f'INSERT INTO {table_name} ({', '.join(table_columns)}) \
+                              VALUES ({', '.join(placeholders)})', data)
     logger.info(f'{table_name.capitalize()} in table {table_name} added successfully')
 
 
 @establish_db_connection
-def update_table_record(cursor: sqlite3.Cursor, table_name: str, data: dict, record_id: int):
+def update_table_record(cursor: Cursor, table_name: str, data: dict, record_id: int):
     """
     Updates a record in the specified table.
 
@@ -62,7 +66,7 @@ def update_table_record(cursor: sqlite3.Cursor, table_name: str, data: dict, rec
 
 
 @establish_db_connection
-def delete_table_record(cursor: sqlite3.Cursor, table_name: str, record_id: int) -> None:
+def delete_table_record(cursor: Cursor, table_name: str, record_id: int) -> None:
     """
     Deletes a record from the specified table.
 
@@ -148,11 +152,13 @@ def update_account(account_data: dict, account_id: int):
     :param account_data: A dictionary containing new account data.
     :param account_id: The ID of the account to be updated.
     """
-    if account_number := account_data.get('number'):
+    if account_number := account_data.get(NUMBER_CN):
         validate_account_number(account_number)
-    if account_type := account_data.get('type'):
+
+    if account_type := account_data.get(TYPE_CN):
         validate_account_type(account_type)
-    if account_status := account_data.get('status'):
+
+    if account_status := account_data.get(STATUS_CN):
         validate_account_status(account_status)
 
     update_table_record(ACCOUNTS_TN, account_data, account_id)
@@ -174,7 +180,3 @@ def add_transaction(transaction_data: dict):
     :param transaction_data: A dictionary containing transaction data.
     """
     add_table_records(TRANSACTIONS_TN, transaction_data)
-
-
-if __name__ == '__main__':
-    pass

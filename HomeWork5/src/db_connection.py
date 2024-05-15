@@ -1,7 +1,8 @@
-import sqlite3
+from HomeWork5.src.consts import DB_NAME
+
+from sqlite3 import connect
 from functools import wraps
 from typing import Callable
-from HomeWork5.src.globals import DB_NAME
 
 
 def establish_db_connection(func: Callable) -> Callable:
@@ -13,7 +14,7 @@ def establish_db_connection(func: Callable) -> Callable:
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
-        conn = sqlite3.connect(DB_NAME)
+        conn = connect(DB_NAME)
         cursor = conn.cursor()
 
         result = func(cursor, *args, **kwargs)

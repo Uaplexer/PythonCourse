@@ -1,10 +1,8 @@
 from HomeWork5.src.db_tasks_sql import get_user_transactions
 from db_tasks import get_users_full_names_with_debts, get_biggest_capital_bank, get_banks_with_oldest_client, \
-    get_bank_with_most_unique_outbound_operations, delete_empty_users
+    get_bank_with_most_unique_outbound_operations, delete_empty_users, generate_discounts
 from api import add_banks, add_accounts, add_users, update_user, update_account
-from globals import USERS_TN, BANKS_TN, ACCOUNTS_TN, TRANSACTIONS_TN
 from transactions import perform_transaction
-from utils import generate_discounts, clear_table
 
 if __name__ == '__main__':
     users = [
@@ -25,11 +23,6 @@ if __name__ == '__main__':
         {'user_id': 1, 'type': 'credit', 'number': 'ID--m2-ef-74532-ls', 'bank_id': 2, 'currency': 'USD',
          'amount': 12345, 'status': 'gold'},
     ]
-
-    clear_table(USERS_TN)
-    clear_table(BANKS_TN)
-    clear_table(ACCOUNTS_TN)
-    clear_table(TRANSACTIONS_TN)
 
     add_banks(banks)
     add_accounts(accounts)

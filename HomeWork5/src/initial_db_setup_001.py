@@ -1,6 +1,6 @@
 import argparse as argp
-import sqlite3
-from globals import DB_NAME, BANKS_TN, TRANSACTIONS_TN, USERS_TN, ACCOUNTS_TN
+from sqlite3 import connect
+from consts import DB_NAME, BANKS_TN, TRANSACTIONS_TN, USERS_TN, ACCOUNTS_TN
 
 
 parser = argp.ArgumentParser()
@@ -8,7 +8,7 @@ parser.add_argument('--unique', action='store_true',
                     help=f'Uniqueness for fields {USERS_TN}.name and {USERS_TN}.surname')
 args = parser.parse_args()
 unique_constraint = 'UNIQUE' if args.unique else ''
-connection = sqlite3.connect(DB_NAME)
+connection = connect(DB_NAME)
 cursor = connection.cursor()
 
 cursor.execute(f'''CREATE TABLE IF NOT EXISTS {BANKS_TN} (

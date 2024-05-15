@@ -1,7 +1,7 @@
 import requests
 from http import HTTPStatus
 from logger import setup_logger
-from globals import API_KEY_CURRENCIES, API_URL_CURRENCIES
+from consts import API_KEY_CURRENCIES, API_URL_CURRENCIES
 
 logger = setup_logger()
 
